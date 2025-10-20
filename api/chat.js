@@ -1,8 +1,7 @@
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
-  // Gestion CORS
-  res.setHeader('Access-Control-Allow-Credentials', true);
+  // Headers CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -20,7 +19,7 @@ module.exports = async (req, res) => {
   if (!GEMINI_API_KEY) {
     return res.status(500).json({ 
       error: "Configuration serveur manquante",
-      message: "GEMINI_API_KEY non configurée sur Vercel"
+      message: "GEMINI_API_KEY non configurée"
     });
   }
 
@@ -33,11 +32,11 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Format de requête invalide' });
     }
     
-    if (!userQuery || typeof userQuery !== 'string') {
+    if (!userQuery) {
       return res.status(400).json({ error: 'Requête utilisateur manquante' });
     }
 
-    // Configuration du bot
+    // Configuration
     const MODEL = 'gemini-pro';
     const PROMO_CODE = "TAR72";
     const AFFILIATE_LINK_1XBET = "https://refpa58144.com/L?tag=d_4708581m_1573c_&site=4708581&ad=1573";
@@ -45,12 +44,24 @@ module.exports = async (req, res) => {
     const WHATSAPP_LINK = "https://whatsapp.com/channel/0029VbBRgnhEawdxneZ5To1i";
     const TELEGRAM_LINK = "https://t.me/+tuopCS5aGEk3ZWZk";
 
-    const SYSTEM_PROMPT = `Vous êtes TAR72PRONOSTIC, assistant expert pour les bonus de paris sportifs. Utilisez le code **${PROMO_CODE}** pour le bonus maximal sur 1xBet et Melbet. Répondez de manière concise et engageante.`;
+    const SYSTEM_PROMPT = `Vous êtes TAR72PRONOSTIC, assistant expert pour les bonus de paris sportifs sur 1xBet et Melbet. 
+
+Votre mission : Convaincre d'utiliser le code promo **${PROMO_CODE}** pour le bonus maximal.
+
+Répondez de manière engageante, informative et courte (2-3 phrases max). Toujours inclure le code **${PROMO_CODE}**.
+
+Liens :
+- 1xBet: ${AFFILIATE_LINK_1XBET}
+- Melbet: ${AFFILIATE_LINK_MELBET}
+- WhatsApp: ${WHATSAPP_LINK}
+- Telegram: ${TELEGRAM_LINK}
+
+Utilisez **gras** pour le code promo.`;
 
     const payload = {
       contents: [{
         parts: [{
-          text: `${SYSTEM_PROMPT}\n\nQuestion: ${userQuery}\n\nLiens importants:\n- 1xBet: ${AFFILIATE_LINK_1XBET}\n- Melbet: ${AFFILIATE_LINK_MELBET}\n- WhatsApp: ${WHATSAPP_LINK}\n- Telegram: ${TELEGRAM_LINK}`
+          text: `${SYSTEM_PROMPT}\n\nQuestion: ${userQuery}`
         }]
       }],
       generationConfig: {
@@ -61,9 +72,9 @@ module.exports = async (req, res) => {
       }
     };
 
-    console.log('🔄 Appel à Gemini API...');
+    const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
     
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(API_URL, {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -73,7 +84,6 @@ module.exports = async (req, res) => {
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('❌ Erreur Gemini:', errorData);
       throw new Error(`API Gemini: ${response.status}`);
     }
 
@@ -84,13 +94,11 @@ module.exports = async (req, res) => {
       throw new Error('Réponse vide de Gemini');
     }
 
-    console.log('✅ Réponse reçue avec succès');
-    
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
     return res.status(200).send(text);
 
   } catch (error) {
-    console.error('💥 Erreur:', error);
-    return res.status(500).send(`Erreur serveur: ${error.message}. Code promo: ${PROMO_CODE}`);
+    console.error('Erreur API:', error);
+    return res.status(200).send(`Désolé, service temporairement indisponible. Utilisez le code **${PROMO_CODE}** pour votre bonus.`);
   }
 };

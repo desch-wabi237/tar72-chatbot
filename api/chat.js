@@ -1,93 +1,118 @@
-// Vercel Serverless Function (Node.js) pour le proxy Gemini
-// Créez ce fichier dans le dossier 'api' de votre projet (par exemple, api/chat.js)
-
-// Importation de 'node-fetch' pour garantir la compatibilité Node.js
-// ASSUREZ-VOUS D'AVOIR EXÉCUTÉ 'npm install node-fetch'
+// api/chat.js - Version corrigée
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
-    // 1. Définition des constantes sécurisées (invisibles au client)
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // LUE DEPUIS LES VAR D'ENV DE VERCEL
-    const MODEL = 'gemini-2.5-flash-preview-09-2025';
+    // 1. Définition des constantes sécurisées
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    const MODEL = 'gemini-2.0-flash-exp'; // Modèle plus stable
     const PROMO_CODE = "TAR72";
     const AFFILIATE_LINK = "https://refpa58144.com/L?tag=d_4708581m_1573c_&site=4708581&ad=1573";
     const WHATSAPP_LINK = "https://whatsapp.com/channel/0029VbBRgnhEawdxneZ5To1i";
     const TELEGRAM_LINK = "https://t.me/+tuopCS5aGEk3ZWZk";
 
-    // Le prompt système, exécuté côté serveur (sécurisé)
-    const SYSTEM_PROMPT = `
-        Vous êtes TAR72-Bot, un agent promotionnel expert de 1xBet et Melbet. Votre unique mission est de convaincre l'utilisateur d'utiliser le code promo **${PROMO_CODE}** lors de son inscription pour obtenir le meilleur bonus. 
-        Vos réponses doivent être engageantes, informatives, courtes (maximum 3 phrases) et toujours inclure un rappel du code promo **${PROMO_CODE}**.
+    // 2. Gestion CORS
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    
+    // Gérer les requêtes OPTIONS pour CORS
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
 
-        Si l'utilisateur demande des liens, ou si cela est pertinent pour l'inscription, incluez toujours les liens suivants de manière naturelle dans votre réponse, en utilisant leur format complet (commencez par 'https://'):
-        - Lien d'inscription (Bonus maximal): ${AFFILIATE_LINK}
-        - Chaîne WhatsApp (Conseils/Communauté): ${WHATSAPP_LINK}
-        - Canal Telegram (Nouvelles/Infos): ${TELEGRAM_LINK}
-
-        Utilisez le format Markdown pour mettre en gras le code promo.
-    `;
-
-    // 2. Vérification de la méthode et de la clé
+    // 3. Vérification de la méthode
     if (req.method !== 'POST') {
-        // Vercel utilise le standard 'res.send()'
-        return res.status(405).send('Method Not Allowed');
+        return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
+    // 4. Vérification de la clé API
     if (!GEMINI_API_KEY) {
-        console.error("Clé API non trouvée dans les variables d'environnement Vercel.");
-        return res.status(500).send("Erreur de configuration serveur: La clé API Gemini n'est pas définie. pariel");
+        console.error("❌ Clé API Gemini manquante dans les variables d'environnement");
+        return res.status(500).json({ error: "Configuration serveur manquante" });
     }
 
-    // 3. Extraction de la requête utilisateur (gestion de la lecture du corps de la requête)
+    // 5. Extraction de la requête utilisateur
     let userQuery;
     try {
-        const body = JSON.parse(req.body); // Si Vercel ne parse pas automatiquement le corps
+        const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
         userQuery = body.userQuery;
-    } catch (e) {
-        userQuery = req.body.userQuery; // Pour les environnements où Vercel parse
+        
+        if (!userQuery || typeof userQuery !== 'string') {
+            return res.status(400).json({ error: 'Requête utilisateur invalide' });
+        }
+    } catch (error) {
+        console.error("❌ Erreur de parsing du corps:", error);
+        return res.status(400).json({ error: 'Format de requête invalide' });
     }
 
+    // 6. Prompt système
+    const SYSTEM_PROMPT = `Vous êtes TAR72-Bot, un agent promotionnel expert de 1xBet et Melbet. Votre mission est de convaincre l'utilisateur d'utiliser le code promo **${PROMO_CODE}** lors de son inscription pour obtenir le meilleur bonus.
 
-    if (!userQuery) {
-        return res.status(400).send('Requête utilisateur manquante.');
-    }
+Répondez de manière engageante, informative et courte (2-3 phrases maximum). Toujours inclure le code promo **${PROMO_CODE}** dans votre réponse.
 
-    // 4. Construction du payload pour l'API Gemini
+Liens importants :
+- Inscription : ${AFFILIATE_LINK}
+- WhatsApp : ${WHATSAPP_LINK}  
+- Telegram : ${TELEGRAM_LINK}
+
+Utilisez le format Markdown pour mettre en gras le code promo.`;
+
+    // 7. Construction du payload Gemini
     const payload = {
-        contents: [{ parts: [{ text: userQuery }] }],
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{
+            parts: [{
+                text: SYSTEM_PROMPT + `\n\nQuestion de l'utilisateur: ${userQuery}`
+            }]
+        }],
+        generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 1024,
+        }
     };
-    
+
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
-    // 5. Appel de l'API Gemini (côté serveur Vercel)
     try {
+        console.log("🔄 Appel à l'API Gemini...");
+        
         const geminiResponse = await fetch(API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+            },
             body: JSON.stringify(payload)
         });
 
+        const responseData = await geminiResponse.json();
+
         if (!geminiResponse.ok) {
-            const errorBody = await geminiResponse.json();
-            console.error("Erreur de l'API Gemini:", errorBody);
-            // Retourne une erreur 502 Bad Gateway pour indiquer l'échec de la dépendance
-            return res.status(502).send(errorBody.error?.message || 'Erreur lors de l\'appel à l\'API Gemini.');
+            console.error("❌ Erreur Gemini API:", responseData);
+            return res.status(geminiResponse.status).json({ 
+                error: responseData.error?.message || 'Erreur API Gemini' 
+            });
         }
 
-        const result = await geminiResponse.json();
-        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        const text = responseData.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (!text) {
-            return res.status(500).send("Réponse de l'IA vide.");
+            console.error("❌ Réponse vide de Gemini:", responseData);
+            return res.status(500).json({ error: "Réponse IA vide" });
         }
 
-        // 6. Succès : Renvoyer le texte brut au client
-        res.setHeader('Content-Type', 'text/plain');
+        console.log("✅ Réponse Gemini reçue avec succès");
+        
+        // 8. Renvoyer la réponse
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.status(200).send(text);
 
     } catch (error) {
-        console.error("Erreur de l'application Serverless:", error);
-        return res.status(500).send("Erreur serveur interne lors du traitement de la requête IA.");
+        console.error("💥 Erreur serveur:", error);
+        return res.status(500).json({ 
+            error: "Erreur interne du serveur",
+            details: error.message 
+        });
     }
 };

@@ -1,21 +1,18 @@
 {
   "version": 2,
   "builds": [
-    { "src": "api/**/*.js", "use": "@vercel/node" },
-    { "src": "package.json", "use": "@vercel/static-build" }
-  ],
-  "routes": [
-    { 
-      "src": "/api/(.*)", 
-      "dest": "/api/$1",
-      "methods": ["GET", "POST", "OPTIONS"]
+    {
+      "src": "api/chat.js",
+      "use": "@vercel/node"
     },
-    { 
-      "src": "/(.*)", 
-      "dest": "/index.html" 
+    {
+      "src": "vite.config.js",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
     }
   ],
-  "env": {
-    "GEMINI_API_KEY": "process.env.GEMINI_API_KEY"
-  }
+  "routes": [
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }

@@ -32,15 +32,38 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Requête utilisateur manquante' });
     }
 
+    // Constantes importantes pour le bot
     const MODEL = 'gemini-pro';
-    const SYSTEM_PROMPT = `Vous êtes TAR72PRONOSTIC, assistant expert pour les bonus de paris sportifs.`;
+    const PROMO_CODE = "TAR72";
+    const AFFILIATE_LINK_1XBET = "https://refpa58144.com/L?tag=d_4708581m_1573c_&site=4708581&ad=1573";
+    const AFFILIATE_LINK_MELBET = "https://melbet-affiliate-link-a-remplacer.com/promo/TAR72";
+    const WHATSAPP_LINK = "https://whatsapp.com/channel/0029VbBRgnhEawdxneZ5To1i";
+    const TELEGRAM_LINK = "https://t.me/+tuopCS5aGEk3ZWZk";
+
+    const SYSTEM_PROMPT = `Vous êtes TAR72PRONOSTIC, un assistant expert pour les bonus de paris sportifs sur 1xBet et Melbet. Votre mission est de convaincre l'utilisateur d'utiliser le code promo **${PROMO_CODE}** pour obtenir le bonus maximal.
+
+Répondez de manière engageante, informative et courte (2-3 phrases maximum). Toujours inclure le code promo **${PROMO_CODE}** dans votre réponse.
+
+Liens importants :
+- Inscription 1xBet : ${AFFILIATE_LINK_1XBET}
+- Inscription Melbet : ${AFFILIATE_LINK_MELBET}
+- WhatsApp : ${WHATSAPP_LINK}  
+- Telegram : ${TELEGRAM_LINK}
+
+Utilisez le format Markdown pour mettre en gras le code promo.`;
 
     const payload = {
       contents: [{
         parts: [{
-          text: `${SYSTEM_PROMPT}\n\nQuestion: ${userQuery}`
+          text: `${SYSTEM_PROMPT}\n\nQuestion de l'utilisateur: ${userQuery}`
         }]
-      }]
+      }],
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
+      }
     };
 
     const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}`;

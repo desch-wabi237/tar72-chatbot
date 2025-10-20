@@ -1,6 +1,10 @@
 // Vercel Serverless Function (Node.js) pour le proxy Gemini
 // Créez ce fichier dans le dossier 'api' de votre projet (par exemple, api/chat.js)
 
+// Importation de 'node-fetch' pour garantir la compatibilité Node.js
+// ASSUREZ-VOUS D'AVOIR EXÉCUTÉ 'npm install node-fetch'
+const fetch = require('node-fetch');
+
 module.exports = async (req, res) => {
     // 1. Définition des constantes sécurisées (invisibles au client)
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // LUE DEPUIS LES VAR D'ENV DE VERCEL
@@ -25,6 +29,7 @@ module.exports = async (req, res) => {
 
     // 2. Vérification de la méthode et de la clé
     if (req.method !== 'POST') {
+        // Vercel utilise le standard 'res.send()'
         return res.status(405).send('Method Not Allowed');
     }
 
@@ -33,8 +38,15 @@ module.exports = async (req, res) => {
         return res.status(500).send("Erreur de configuration serveur: La clé API Gemini n'est pas définie. pariel");
     }
 
-    // 3. Extraction de la requête utilisateur
-    const { userQuery } = req.body;
+    // 3. Extraction de la requête utilisateur (gestion de la lecture du corps de la requête)
+    let userQuery;
+    try {
+        const body = JSON.parse(req.body); // Si Vercel ne parse pas automatiquement le corps
+        userQuery = body.userQuery;
+    } catch (e) {
+        userQuery = req.body.userQuery; // Pour les environnements où Vercel parse
+    }
+
 
     if (!userQuery) {
         return res.status(400).send('Requête utilisateur manquante.');

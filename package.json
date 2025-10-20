@@ -1,5 +1,5 @@
 {
-  "name": "votre-projet",
+  "name": "tar72-chatbot",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -8,7 +8,8 @@
   },
   "dependencies": {
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "node-fetch": "^2.6.7"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",
